@@ -1,5 +1,4 @@
 #set working directory
-setwd("~/Desktop/blogwork/LPO.mapping/R")
 
 #packages required
 library(readxl)
@@ -7,12 +6,14 @@ library(purrr)
 library(dplyr)
 library(tidyverse)
 
-#import file
-read_excel("last two weeks.xlsx")
+#import excel files
+ramps<- read_excel("IDFG boat launch.xlsx")
+landmarks <-read_excel("landmarks.xlsx")
 last2weeks <- read_excel("last two weeks.xlsx")
-last2weeks
+receivers<- read_excel("receiver info.xlsx")
 
-#splits into list by receiver
+#splits "last two weeks" into list by receiver
+#(last two weeks is last two weeks of data from "Tracking summary 1 hr residency" filtered for WAE)
 seperated<-split(last2weeks, last2weeks$Receiver)
 seperated
 
@@ -26,18 +27,17 @@ fishcount<- do.call(rbind.data.frame, rec.fish)
 fishcounts<- fishcount %>% remove_rownames %>% column_to_rownames(var = "Receiver")
 
 
-#import receiver info and makes df
-receivers<- read_excel("receiver info.xlsx")
+#makes receiver file into df
 as.data.frame(receivers)
 
 
-#change receiver to row name in receivers df to match merging df
+#change receiver to row name in receivers df to match merging df (fishcounts)
 receiver<- receivers %>% remove_rownames %>% column_to_rownames(var = "Receiver")
 
 #combine receiver info and fish counts
 final.na<- merge(receiver,fishcounts, by=0, all=TRUE)
 final.na
-#get rid of n/a's
+#get rid of n/a's (receivers that were not checked in last two weeks)
 final <- na.omit(final.na)
 final
 #rename column headers
@@ -47,11 +47,6 @@ final
 
 #install.packages("leaflet")
 library(leaflet)
-################################
-#loads in boat launch info
-library(readxl)
-
-ramps<- read_excel("IDFG boat launch.xlsx")
 
 #opens map
 leaflet()%>%addTiles()
@@ -64,7 +59,6 @@ pal<-colorBin(colors,final$Fish.Count, bins = 4)
 black <- ("black")
 launchpal <- colorFactor(black, ramps$Boat_Launch)
 
-
 #popup info for boat launches (interactive text)
 ramps<- ramps%>%mutate(popup_info=paste(Site_Name))
 ramps$popup_info
@@ -74,30 +68,35 @@ final<- final%>%mutate(popup_info=paste(Location,"<br/>", "Fish Count = ",Fish.C
 final$popup_info
 
 #creates map with lat/long points with color gradient markers for fish density and markers for boat ramps
-leaflet()%>%addTiles()%>%
-
-  #adds receiver locations
-  addCircleMarkers(data=final,
-
-                   #adds lat/long
-                   lat = ~Latitude, lng = ~Longitude,
-                   #adjusts size of points
-                   radius = ~3,
-                   #adds color gradient
-                   color = ~pal(Fish.Count), fillOpacity = 1,
-                   popup = ~popup_info) %>%
+walleyemap<- leaflet()%>%addTiles()%>%
 
   #adds boat launch locations
   addCircleMarkers(data=ramps,
 
                    #adds lat/long
-                   lat = ~DD_Y, lng = ~DD_X,
+                   lat = ~Latitude, lng = ~Longitude,
                    #adjusts size of points
                    radius = ~2,
                    #adds color
                    color = ~launchpal(Boat_Launch),
                    fillOpacity = 0.6,
                    popup = ~popup_info)    %>%
+
+  #adds receiver locations
+  addCircleMarkers(data=final,
+                   #adds lat/long
+                   lat = ~Latitude, lng = ~Longitude,
+                   #adjusts size of points
+                   radius = ~4,
+                   #adds color gradient
+                   color = ~pal(Fish.Count), fillOpacity = 1,
+                   popup = ~popup_info) %>%
+
+  #adds text to map for landmarks but not actual markers
+  addLabelOnlyMarkers ( data = landmarks,
+                        lat = ~Latitude, lng = ~Longitude,
+                        label = ~Landmark,
+                        labelOptions = labelOptions(nohide = TRUE, direction = "center", textOnly = TRUE)) %>%
 
 
   addLegend("bottomleft",
@@ -109,4 +108,5 @@ leaflet()%>%addTiles()%>%
             pal = launchpal, opacity = 0.7,
             values = ramps$Boat_Launch)
 
-###########################################
+walleyemap
+
