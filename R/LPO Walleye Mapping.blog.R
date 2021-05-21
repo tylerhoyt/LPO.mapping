@@ -110,9 +110,3 @@ leaflet()%>%addTiles()%>%
             values = ramps$Boat_Launch)
 
 ###########################################
-addLegend("bottomleft",
-          pal = launchpal, opacity = 0.6,
-          values = ramps$Boat_Launch)
-help("addLegend")
-
-help(leaflet)
